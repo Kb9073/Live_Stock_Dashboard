@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Insights Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Stock Dashboard</h2>
+    <ul>
+      <li class="active">Home</li>
+      <li>Reports</li>
+      <li>About</li>
+    </ul>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <input id="symbolInput" type="text" placeholder="Search Stock (e.g., AAPL)">
+      <button onclick="fetchStock()">Search</button>
+      <span class="user">Hello, Karan</span>
+    </div>
+
+    <div class="cards">
+      <div class="card" id="priceCard">
+        <h3>Current Price</h3>
+        <p id="price">--</p>
+      </div>
+      <div class="card" id="changeCard">
+        <h3>Change (%)</h3>
+        <p id="change">--</p>
+      </div>
+      <div class="card" id="capCard">
+        <h3>Market Cap</h3>
+        <p id="cap">--</p>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="stockChart"></canvas>
+    </div>
+  </div>
+
+<script>
+  let chart;
+  let autoRefreshInterval;
+
+  async function fetchStock() {
+    const symbol = document.getElementById('symbolInput').value.toUpperCase();
+    if (!symbol) return alert('Enter a stock symbol');
+
+    const res = await fetch(`/stock?symbol=${symbol}`);
+    const data = await res.json();
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    // Smooth update animation
+    document.getElementById('price').innerText = `$${data.price}`;
+    document.getElementById('change').innerText = data.percent_change;
+    document.getElementById('cap').innerText = data.market_cap
+      ? data.market_cap.toLocaleString()
+      : '--';
+
+    const labels = data.history.map(h => h.date);
+    const prices = data.history.map(h => h.close);
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(document.getElementById('stockChart'), {
+      type: 'line',
+      data: {
+        labels: labels.reverse(),
+        datasets: [{
+          label: `${data.symbol} 7-Day Trend`,
+          data: prices.reverse(),
+          borderColor: '#00FF88',
+          backgroundColor: 'rgba(0,255,136,0.1)',
+          tension: 0.4,
+          pointBackgroundColor: '#00FF88',
+          pointRadius: 4,
+          fill: true
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: 'white' } } },
+        scales: {
+          x: { ticks: { color: 'white' } },
+          y: { ticks: { color: 'white' } }
+        },
+        animations: {
+          tension: {
+            duration: 2000,
+            easing: 'easeOutBounce',
+            from: 0.3,
+            to: 0.5,
+            loop: false
+          }
+        }
+      }
+    });
+
+    // Clear old refresh timer & start new one
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(fetchStock, 30000); // every 30 sec
+  }
+</script>
+</body>
+</html>
